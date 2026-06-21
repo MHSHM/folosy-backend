@@ -2,9 +2,14 @@ package handler
 
 import (
 	"encoding/json"
+	"folosy-backend/internal/service"
 	"folosy-backend/internal/validation"
 	"net/http"
 )
+
+type UserHandler struct {
+	userService *service.UserService
+}
 
 type CreateUserRequest struct {
 	Email    string `json:"email"`
@@ -12,10 +17,13 @@ type CreateUserRequest struct {
 	Password string `json:"password"`
 }
 
-func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
+func NewUserHandler(userService *service.UserService) *UserHandler {
+	return &UserHandler{userService: userService}
+}
+
+func (h *UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 	var userRequest CreateUserRequest
 
-	// Decode the request body
 	err := json.NewDecoder(r.Body).Decode(&userRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -28,12 +36,16 @@ func CreateUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Call the user creation service
+	user, err := h.userService.CreateUser(userRequest.Email, userRequest.Username, userRequest.Password)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_ = json.NewEncoder(w).Encode(map[string]string{
-		"email":    userRequest.Email,
-		"username": userRequest.Username,
+		"email":    user.Email,
+		"username": user.Username,
 	})
 }
