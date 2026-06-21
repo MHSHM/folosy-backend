@@ -23,7 +23,6 @@ func (r *UserRepository) CreateUser(user domain.User) error {
 		INSERT INTO users (email, username, password)
 		VALUES ($1, $2, $3)
 	`
-
 	// TODO: We probably should pass down the context from the handler
 	_, err := r.db.Exec(context.Background(), query, user.Email, user.Username, user.Password)
 	if err != nil {
