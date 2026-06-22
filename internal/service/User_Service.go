@@ -2,10 +2,11 @@ package service
 
 import (
 	"folosy-backend/internal/domain"
+	"time"
 )
 
 type UserRepository interface {
-	CreateUser(user domain.User) error
+	CreateUser(user domain.User) (string, error)
 	EmailExist(email string) error
 }
 
@@ -29,10 +30,14 @@ func (s *UserService) CreateUser(email, username, password string) (domain.User,
 		Password: password,
 	}
 
-	err = s.repo.CreateUser(user)
+	id, err := s.repo.CreateUser(user)
 	if err != nil {
 		return domain.User{}, err
 	}
+
+	user.ID = id
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
 
 	return user, nil
 }

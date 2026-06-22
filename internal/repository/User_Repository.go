@@ -18,18 +18,20 @@ func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) CreateUser(user domain.User) error {
+func (r *UserRepository) CreateUser(user domain.User) (string, error) {
 	query := `
 		INSERT INTO users (email, username, password)
 		VALUES ($1, $2, $3)
+		RETURNING id
 	`
 	// TODO: We probably should pass down the context from the handler
-	_, err := r.db.Exec(context.Background(), query, user.Email, user.Username, user.Password)
+	var id string
+	err := r.db.QueryRow(context.Background(), query, user.Email, user.Username, user.Password).Scan(&id)
 	if err != nil {
-		return fmt.Errorf("Failed to register a new user: %w", err)
+		return "", fmt.Errorf("Failed to register a new user: %w", err)
 	}
 
-	return nil
+	return id, nil
 }
 
 func (r *UserRepository) EmailExist(email string) error {
