@@ -2,12 +2,20 @@ package database
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+//go:embed migrations/*.sql
+var MigrationFiles embed.FS
 
 func Connect(databaseURL string) (*pgxpool.Pool, error) {
 	if databaseURL == "" {
@@ -39,4 +47,26 @@ func Connect(databaseURL string) (*pgxpool.Pool, error) {
 	}
 
 	return pool, nil
+}
+
+func RunDBMigrations(databaseURL string) error {
+	sourceDriver, err := iofs.New(MigrationFiles, "migrations")
+	if err != nil {
+		return fmt.Errorf("create source driver: %w", err)
+	}
+
+	m, err := migrate.NewWithSourceInstance("iofs", sourceDriver, databaseURL)
+	if err != nil {
+		fmt.Errorf("failed to create migration instance: %v", err)
+	}
+	defer m.Close()
+
+	err = m.Up()
+	if err != nil && err != migrate.ErrNoChange {
+		fmt.Errorf("migration failed: %v", err)
+	}
+
+	log.Println("Database migrated successfully!")
+
+	return nil
 }
