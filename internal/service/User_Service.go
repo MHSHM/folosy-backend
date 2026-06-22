@@ -2,6 +2,9 @@ package service
 
 import (
 	"folosy-backend/internal/domain"
+
+	"golang.org/x/crypto/bcrypt"
+
 	"time"
 )
 
@@ -24,10 +27,15 @@ func (s *UserService) CreateUser(email, username, password string) (domain.User,
 		return domain.User{}, err
 	}
 
+	hashed_password, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return domain.User{}, err
+	}
+
 	user := domain.User{
 		Email:    email,
 		Username: username,
-		Password: password,
+		Password: string(hashed_password),
 	}
 
 	id, err := s.repo.CreateUser(user)
