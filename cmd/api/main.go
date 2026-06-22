@@ -11,11 +11,18 @@ import (
 )
 
 func main() {
-	dbPool, err := database.Connect(os.Getenv("DATABASE_URL"))
+	databaseURL := os.Getenv("DATABASE_URL")
+
+	dbPool, err := database.Connect(databaseURL)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
 	defer dbPool.Close()
+
+	err = database.RunDBMigrations(databaseURL)
+	if err != nil {
+		log.Fatalf("failed to run migrations: %v", err)
+	}
 
 	userRepository := repository.NewUserRepository(dbPool)
 	userService := service.NewUserService(userRepository)
