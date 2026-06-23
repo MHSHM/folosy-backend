@@ -18,7 +18,7 @@ func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) CreateUser(user domain.User) (string, error) {
+func (r *UserRepository) Register(user domain.User) (string, error) {
 	query := `
 		INSERT INTO users (email, username, password)
 		VALUES ($1, $2, $3)

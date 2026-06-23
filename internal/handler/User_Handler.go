@@ -11,7 +11,7 @@ type UserHandler struct {
 	userService *service.UserService
 }
 
-type CreateUserRequest struct {
+type RegisterRequest struct {
 	Email    string `json:"email"`
 	Username string `json:"username"`
 	Password string `json:"password"`
@@ -21,22 +21,22 @@ func NewUserHandler(userService *service.UserService) *UserHandler {
 	return &UserHandler{userService: userService}
 }
 
-func (h *UserHandler) CreateUserHandler(w http.ResponseWriter, r *http.Request) {
-	var userRequest CreateUserRequest
+func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
+	var registerRequest RegisterRequest
 
-	err := json.NewDecoder(r.Body).Decode(&userRequest)
+	err := json.NewDecoder(r.Body).Decode(&registerRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	err = validation.ValidateNewUserData(userRequest.Email, userRequest.Username, userRequest.Password)
+	err = validation.ValidateNewUserData(registerRequest.Email, registerRequest.Username, registerRequest.Password)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	user, err := h.userService.CreateUser(userRequest.Email, userRequest.Username, userRequest.Password)
+	user, err := h.userService.Register(registerRequest.Email, registerRequest.Username, registerRequest.Password)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

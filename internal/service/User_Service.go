@@ -9,7 +9,7 @@ import (
 )
 
 type UserRepository interface {
-	CreateUser(user domain.User) (string, error)
+	Register(user domain.User) (string, error)
 	EmailExist(email string) error
 }
 
@@ -21,7 +21,7 @@ func NewUserService(repo UserRepository) *UserService {
 	return &UserService{repo}
 }
 
-func (s *UserService) CreateUser(email, username, password string) (domain.User, error) {
+func (s *UserService) Register(email, username, password string) (domain.User, error) {
 	err := s.repo.EmailExist(email)
 	if err != nil {
 		return domain.User{}, err
@@ -38,7 +38,7 @@ func (s *UserService) CreateUser(email, username, password string) (domain.User,
 		Password: string(hashed_password),
 	}
 
-	id, err := s.repo.CreateUser(user)
+	id, err := s.repo.Register(user)
 	if err != nil {
 		return domain.User{}, err
 	}

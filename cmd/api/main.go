@@ -28,7 +28,7 @@ func main() {
 	userService := service.NewUserService(userRepository)
 	userHandler := handler.NewUserHandler(userService)
 
-	http.HandleFunc("POST /register", userHandler.CreateUserHandler)
+	http.HandleFunc("POST /register", userHandler.Register)
 
 	log.Println("server listening on :8080")
 	err = http.ListenAndServe(":8080", nil)
