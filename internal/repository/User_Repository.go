@@ -7,6 +7,7 @@ import (
 
 	"folosy-backend/internal/domain"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -41,4 +42,25 @@ func (r *UserRepository) Register(ctx context.Context, user domain.User) (string
 	}
 
 	return id, nil
+}
+
+func (r *UserRepository) GetByEmail(ctx context.Context, email string) (domain.User, error) {
+	query := `
+		SELECT id, email, username, password
+		FROM users
+		WHERE email = $1
+	`
+	var user domain.User
+	err := r.db.QueryRow(ctx, query, email).Scan(&user.ID, &user.Email, &user.Username, &user.Password)
+	if err != nil {
+		// pgx.ErrNoRows means the WHERE matched nothing — no user with that
+		// email. Translate that database-specific signal into our domain sentinel
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.User{}, domain.ErrUserNotFound
+		}
+
+		return domain.User{}, fmt.Errorf("get user by email: %w", err)
+	}
+
+	return user, nil
 }
