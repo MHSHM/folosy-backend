@@ -11,14 +11,14 @@ type UserHandler struct {
 	userService *service.UserService
 }
 
+func NewUserHandler(userService *service.UserService) *UserHandler {
+	return &UserHandler{userService: userService}
+}
+
 type RegisterRequest struct {
 	Email    string `json:"email"`
 	Username string `json:"username"`
 	Password string `json:"password"`
-}
-
-func NewUserHandler(userService *service.UserService) *UserHandler {
-	return &UserHandler{userService: userService}
 }
 
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +30,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = validation.ValidateNewUserData(registerRequest.Email, registerRequest.Username, registerRequest.Password)
+	err = validation.ValidateRegister(registerRequest.Email, registerRequest.Username, registerRequest.Password)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func ValidateNewUserData(email string, username string, password string) error {
+func ValidateRegister(email string, username string, password string) error {
 	email = strings.TrimSpace(email)
 	username = strings.TrimSpace(username)
 
