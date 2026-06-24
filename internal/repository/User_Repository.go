@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"folosy-backend/internal/domain"
@@ -18,33 +17,32 @@ func NewUserRepository(db *pgxpool.Pool) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-func (r *UserRepository) Register(user domain.User) (string, error) {
+func (r *UserRepository) Register(ctx context.Context, user domain.User) (string, error) {
 	query := `
 		INSERT INTO users (email, username, password)
 		VALUES ($1, $2, $3)
 		RETURNING id
 	`
-	// TODO: We probably should pass down the context from the handler
 	var id string
-	err := r.db.QueryRow(context.Background(), query, user.Email, user.Username, user.Password).Scan(&id)
+	err := r.db.QueryRow(ctx, query, user.Email, user.Username, user.Password).Scan(&id)
 	if err != nil {
-		return "", fmt.Errorf("Failed to register a new user: %w", err)
+		return "", fmt.Errorf("register new user: %w", err)
 	}
 
 	return id, nil
 }
 
-func (r *UserRepository) EmailExist(email string) error {
+func (r *UserRepository) EmailExist(ctx context.Context, email string) error {
 	const query = `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`
 
 	var exists bool
-	err := r.db.QueryRow(context.Background(), query, email).Scan(&exists)
+	err := r.db.QueryRow(ctx, query, email).Scan(&exists)
 	if err != nil {
 		return fmt.Errorf("check email exists: %w", err)
 	}
 
 	if exists {
-		return errors.New("email already exists")
+		return domain.ErrEmailExists
 	}
 
 	return nil

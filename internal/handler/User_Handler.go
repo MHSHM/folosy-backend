@@ -2,8 +2,11 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
+	"folosy-backend/internal/domain"
 	"folosy-backend/internal/service"
 	"folosy-backend/internal/validation"
+	"log"
 	"net/http"
 )
 
@@ -36,9 +39,14 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userService.Register(registerRequest.Email, registerRequest.Username, registerRequest.Password)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	user, err := h.userService.Register(r.Context(), registerRequest.Email, registerRequest.Username, registerRequest.Password)
+	switch {
+	case errors.Is(err, domain.ErrEmailExists):
+		http.Error(w, err.Error(), http.StatusConflict)
+		return
+	case err != nil:
+		log.Printf("register user: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 

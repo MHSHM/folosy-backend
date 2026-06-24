@@ -57,13 +57,13 @@ func RunDBMigrations(databaseURL string) error {
 
 	m, err := migrate.NewWithSourceInstance("iofs", sourceDriver, databaseURL)
 	if err != nil {
-		fmt.Errorf("failed to create migration instance: %v", err)
+		return fmt.Errorf("create migration instance: %w", err)
 	}
 	defer m.Close()
 
 	err = m.Up()
-	if err != nil && err != migrate.ErrNoChange {
-		fmt.Errorf("migration failed: %v", err)
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("run migrations: %w", err)
 	}
 
 	log.Println("Database migrated successfully!")

@@ -1,16 +1,18 @@
 package service
 
 import (
+	"context"
+	"fmt"
+	"time"
+
 	"folosy-backend/internal/domain"
 
 	"golang.org/x/crypto/bcrypt"
-
-	"time"
 )
 
 type UserRepository interface {
-	Register(user domain.User) (string, error)
-	EmailExist(email string) error
+	Register(ctx context.Context, user domain.User) (string, error)
+	EmailExist(ctx context.Context, email string) error
 }
 
 type UserService struct {
@@ -21,24 +23,24 @@ func NewUserService(repo UserRepository) *UserService {
 	return &UserService{repo}
 }
 
-func (s *UserService) Register(email, username, password string) (domain.User, error) {
-	err := s.repo.EmailExist(email)
+func (s *UserService) Register(ctx context.Context, email, username, password string) (domain.User, error) {
+	err := s.repo.EmailExist(ctx, email)
 	if err != nil {
 		return domain.User{}, err
 	}
 
-	hashed_password, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return domain.User{}, err
+		return domain.User{}, fmt.Errorf("hash password: %w", err)
 	}
 
 	user := domain.User{
 		Email:    email,
 		Username: username,
-		Password: string(hashed_password),
+		Password: string(hashedPassword),
 	}
 
-	id, err := s.repo.Register(user)
+	id, err := s.repo.Register(ctx, user)
 	if err != nil {
 		return domain.User{}, err
 	}
