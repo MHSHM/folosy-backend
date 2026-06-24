@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"folosy-backend/internal/auth"
 	"folosy-backend/internal/domain"
 
 	"golang.org/x/crypto/bcrypt"
@@ -12,14 +14,25 @@ import (
 
 type UserRepository interface {
 	Register(ctx context.Context, user domain.User) (string, error)
+	GetByEmail(ctx context.Context, email string) (domain.User, error)
+}
+
+type RefreshTokenRepository interface {
+	Create(ctx context.Context, userID, tokenHash string, expiresAt time.Time) error
 }
 
 type UserService struct {
-	repo UserRepository
+	repo        UserRepository
+	refreshRepo RefreshTokenRepository
+	tokens      *auth.TokenService
 }
 
-func NewUserService(repo UserRepository) *UserService {
-	return &UserService{repo}
+func NewUserService(repo UserRepository, refreshRepo RefreshTokenRepository, tokens *auth.TokenService) *UserService {
+	return &UserService{
+		repo:        repo,
+		refreshRepo: refreshRepo,
+		tokens:      tokens,
+	}
 }
 
 func (s *UserService) Register(ctx context.Context, email, username, password string) (domain.User, error) {

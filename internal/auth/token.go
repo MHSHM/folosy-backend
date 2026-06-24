@@ -1,6 +1,10 @@
 package auth
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -11,15 +15,23 @@ import (
 // the access-token lifetime so the rest of the app can ask for a token without
 // knowing anything about how tokens work internally.
 type TokenService struct {
-	secret    []byte        // the signing key; only this server knows it
-	accessTTL time.Duration // how long an access token stays valid
+	secret     []byte        // the signing key; only this server knows it
+	accessTTL  time.Duration // how long an access token stays valid
+	refreshTTL time.Duration // how long a refresh token stays valid
 }
 
-func NewTokenService(secret string, accessTTL time.Duration) *TokenService {
+func NewTokenService(secret string, accessTTL, refreshTTL time.Duration) *TokenService {
 	return &TokenService{
-		secret:    []byte(secret),
-		accessTTL: accessTTL,
+		secret:     []byte(secret),
+		accessTTL:  accessTTL,
+		refreshTTL: refreshTTL,
 	}
+}
+
+type RefreshToken struct {
+	Raw       string    // the unguessable token — sent to the client, never stored
+	Hash      string    // SHA-256 of Raw — stored in the DB, never sent
+	ExpiresAt time.Time // when it expires (now + refreshTTL)
 }
 
 // GenerateAccessToken returns a signed JWT whose subject is the user's ID.
@@ -43,4 +55,24 @@ func (s *TokenService) GenerateAccessToken(userID string) (string, error) {
 	}
 
 	return signed, nil
+}
+
+// GenerateRefreshToken creates a new, unguessable refresh token
+func (s *TokenService) GenerateRefreshToken() (RefreshToken, error) {
+	// cryptographically-secure random bytes, encoded to a string.
+	randomBytes := make([]byte, 32)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return RefreshToken{}, fmt.Errorf("read random bytes: %w", err)
+	}
+	raw := base64.RawURLEncoding.EncodeToString(randomBytes)
+
+	// SHA-256 hash of the raw token, hex-encoded, for storage.
+	sum := sha256.Sum256([]byte(raw))
+	hash := hex.EncodeToString(sum[:])
+
+	return RefreshToken{
+		Raw:       raw,
+		Hash:      hash,
+		ExpiresAt: time.Now().Add(s.refreshTTL),
+	}, nil
 }

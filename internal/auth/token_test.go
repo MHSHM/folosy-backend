@@ -8,7 +8,7 @@ import (
 )
 
 func TestGenerateAccessToken(t *testing.T) {
-	svc := NewTokenService("test-secret", 15*time.Minute)
+	svc := NewTokenService("test-secret", 15*time.Minute, 7*24*time.Hour)
 
 	token, err := svc.GenerateAccessToken("user-123")
 	if err != nil {
@@ -33,5 +33,30 @@ func TestGenerateAccessToken(t *testing.T) {
 	// The user ID we passed in should appear as the subject claim.
 	if !strings.Contains(string(payload), "user-123") {
 		t.Errorf("payload missing the user id: %s", payload)
+	}
+}
+
+func TestGenerateRefreshToken(t *testing.T) {
+	svc := NewTokenService("test-secret", 15*time.Minute, 7*24*time.Hour)
+
+	rt, err := svc.GenerateRefreshToken()
+	if err != nil {
+		t.Fatalf("generate refresh token: %v", err)
+	}
+
+	t.Logf("raw (to client):  %s", rt.Raw)
+	t.Logf("hash (to db):     %s", rt.Hash)
+	t.Logf("expires at:       %s", rt.ExpiresAt)
+
+	if rt.Raw == rt.Hash {
+		t.Error("hash equals raw token; it must be hashed before storage")
+	}
+
+	if len(rt.Hash) != 64 {
+		t.Errorf("expected 64-char sha256 hex, got %d chars", len(rt.Hash))
+	}
+
+	if !rt.ExpiresAt.After(time.Now()) {
+		t.Error("expiry should be in the future")
 	}
 }
