@@ -57,6 +57,30 @@ func (s *TokenService) GenerateAccessToken(userID string) (string, error) {
 	return signed, nil
 }
 
+// VerifyAccessToken checks that a token string is genuine and unexpired, and
+// returns the user ID it carries.
+func (s *TokenService) VerifyAccessToken(tokenString string) (string, error) {
+	// ParseWithClaims re-computes the signature and compares it, and validates
+	// exp for us. It calls the keyfunc below to ask "which key do I verify with?"
+	token, err := jwt.ParseWithClaims(tokenString, &jwt.RegisteredClaims{},
+		func(token *jwt.Token) (any, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return s.secret, nil
+		})
+	if err != nil {
+		return "", fmt.Errorf("verify access token: %w", err)
+	}
+
+	claims, ok := token.Claims.(*jwt.RegisteredClaims)
+	if !ok || !token.Valid {
+		return "", fmt.Errorf("verify access token: invalid claims")
+	}
+
+	return claims.Subject, nil
+}
+
 // GenerateRefreshToken creates a new, unguessable refresh token
 func (s *TokenService) GenerateRefreshToken() (RefreshToken, error) {
 	// cryptographically-secure random bytes, encoded to a string.
