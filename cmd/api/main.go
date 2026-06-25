@@ -57,6 +57,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /register", userHandler.Register)
 	mux.HandleFunc("POST /login", userHandler.Login)
+	mux.HandleFunc("POST /refresh", userHandler.Refresh)
 
 	server := &http.Server{
 		Addr:              ":8080",

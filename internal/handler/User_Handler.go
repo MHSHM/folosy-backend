@@ -101,3 +101,43 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"refresh_token": result.RefreshToken,
 	})
 }
+
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+func (h *UserHandler) Refresh(w http.ResponseWriter, r *http.Request) {
+	var refreshRequest RefreshRequest
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodyBytes)
+	err := json.NewDecoder(r.Body).Decode(&refreshRequest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = validation.ValidateRefresh(refreshRequest.RefreshToken)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.userService.Refresh(r.Context(), refreshRequest.RefreshToken)
+	switch {
+	case errors.Is(err, domain.ErrInvalidRefreshToken):
+		// One generic 401 for unknown / expired / revoked-reuse alike.
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	case err != nil:
+		log.Printf("refresh token: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"access_token":  result.AccessToken,
+		"refresh_token": result.RefreshToken,
+	})
+}

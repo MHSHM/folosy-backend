@@ -37,3 +37,11 @@ func ValidateLogin(email string, password string) error {
 
 	return nil
 }
+
+func ValidateRefresh(token string) error {
+	if strings.TrimSpace(token) == "" {
+		return errors.New("refresh token is required")
+	}
+
+	return nil
+}

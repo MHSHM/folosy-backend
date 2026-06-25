@@ -66,13 +66,15 @@ func (s *TokenService) GenerateRefreshToken() (RefreshToken, error) {
 	}
 	raw := base64.RawURLEncoding.EncodeToString(randomBytes)
 
-	// SHA-256 hash of the raw token, hex-encoded, for storage.
-	sum := sha256.Sum256([]byte(raw))
-	hash := hex.EncodeToString(sum[:])
-
 	return RefreshToken{
 		Raw:       raw,
-		Hash:      hash,
+		Hash:      s.HashRefreshToken(raw),
 		ExpiresAt: time.Now().Add(s.refreshTTL),
 	}, nil
+}
+
+// HashRefreshToken returns the SHA-256 (hex) of a raw refresh token.
+func (s *TokenService) HashRefreshToken(raw string) string {
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
 }

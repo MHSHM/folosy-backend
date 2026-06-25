@@ -14,4 +14,13 @@ var (
 	// ErrInvalidCredentials is returned on a failed login. It is deliberately
 	// generic — used for both "no such email" and "wrong password"
 	ErrInvalidCredentials = errors.New("invalid email or password")
+
+	// ErrRefreshTokenNotFound is returned by the repository when no row matches a
+	// given token hash. The service translates it into ErrInvalidRefreshToken.
+	ErrRefreshTokenNotFound = errors.New("refresh token not found")
+
+	// ErrInvalidRefreshToken is the generic refresh failure surfaced to the
+	// client (→ 401). It covers unknown, expired, and revoked/reused tokens
+	// alike, so the response never reveals which case occurred.
+	ErrInvalidRefreshToken = errors.New("invalid refresh token")
 )

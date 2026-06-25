@@ -19,6 +19,9 @@ type UserRepository interface {
 
 type RefreshTokenRepository interface {
 	Create(ctx context.Context, userID, tokenHash string, expiresAt time.Time) error
+	GetByHash(ctx context.Context, tokenHash string) (domain.RefreshToken, error)
+	Revoke(ctx context.Context, id string) error
+	RevokeAllForUser(ctx context.Context, userID string) error
 }
 
 type UserService struct {
@@ -76,6 +79,52 @@ func (s *UserService) Login(ctx context.Context, email, password string) (LoginR
 	return LoginResult{
 		AccessToken:  accessToken,
 		RefreshToken: refresh.Raw,
+	}, nil
+}
+
+// Refresh redeems a raw refresh token for a brand-new access+refresh pair,
+// rotating the token (single-use) and detecting reuse of an already-revoked one.
+func (s *UserService) Refresh(ctx context.Context, rawToken string) (LoginResult, error) {
+	stored, err := s.refreshRepo.GetByHash(ctx, s.tokens.HashRefreshToken(rawToken))
+	if err != nil {
+		if errors.Is(err, domain.ErrRefreshTokenNotFound) {
+			return LoginResult{}, domain.ErrInvalidRefreshToken
+		}
+		return LoginResult{}, fmt.Errorf("refresh: lookup token: %w", err)
+	}
+
+	if stored.RevokedAt.Valid {
+		if err := s.refreshRepo.RevokeAllForUser(ctx, stored.UserID); err != nil {
+			return LoginResult{}, fmt.Errorf("refresh: revoke reused token's family: %w", err)
+		}
+		return LoginResult{}, domain.ErrInvalidRefreshToken
+	}
+
+	if time.Now().After(stored.ExpiresAt) {
+		return LoginResult{}, domain.ErrInvalidRefreshToken
+	}
+
+	if err := s.refreshRepo.Revoke(ctx, stored.ID); err != nil {
+		return LoginResult{}, fmt.Errorf("refresh: revoke old token: %w", err)
+	}
+
+	accessToken, err := s.tokens.GenerateAccessToken(stored.UserID)
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("refresh: generate access token: %w", err)
+	}
+
+	newRefresh, err := s.tokens.GenerateRefreshToken()
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("refresh: generate refresh token: %w", err)
+	}
+
+	if err := s.refreshRepo.Create(ctx, stored.UserID, newRefresh.Hash, newRefresh.ExpiresAt); err != nil {
+		return LoginResult{}, fmt.Errorf("refresh: store new refresh token: %w", err)
+	}
+
+	return LoginResult{
+		AccessToken:  accessToken,
+		RefreshToken: newRefresh.Raw,
 	}, nil
 }
 
