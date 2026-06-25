@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"folosy-backend/internal/auth"
 	"folosy-backend/internal/database"
 	"folosy-backend/internal/handler"
@@ -9,8 +11,36 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
+
+// tokenCleanupInterval is how often the background job prunes expired refresh
+// tokens.
+const tokenCleanupInterval = 4 * time.Hour
+
+// startTokenCleanup periodically deletes expired refresh tokens until ctx is cancelled.
+func startTokenCleanup(ctx context.Context, repo *repository.RefreshTokenRepository) {
+	ticker := time.NewTicker(tokenCleanupInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			n, err := repo.DeleteExpired(ctx)
+			if err != nil {
+				log.Printf("token cleanup: %v", err)
+				continue
+			}
+			if n > 0 {
+				log.Printf("token cleanup: deleted %d expired refresh tokens", n)
+			}
+		}
+	}
+}
 
 // durationFromEnv reads a duration (e.g. "15m", "168h") from an env var,
 // falling back to a default when the var is unset or unparseable.
@@ -68,9 +98,30 @@ func main() {
 		IdleTimeout:       60 * time.Second, // idle keep-alive connection lifetime
 	}
 
-	log.Println("server listening on :8080")
-	err = server.ListenAndServe()
-	if err != nil {
-		log.Fatalf("failed to start server: %v", err)
+	// signal.NotifyContext gives a ctx that cancels when the OS asks us to stop
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// Background job: prune expired refresh tokens every 4h
+	go startTokenCleanup(ctx, refreshTokenRepository)
+
+	// Run the server in a goroutine so main is free to wait for the signal.
+	go func() {
+		log.Println("server listening on :8080")
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("failed to start server: %v", err)
+		}
+	}()
+
+	// Park here until a signal cancels ctx.
+	<-ctx.Done()
+	log.Println("shutting down...")
+
+	// Shutdown drains in-flight requests; the context bounds that wait to 10s.
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("graceful shutdown failed: %v", err)
 	}
+	log.Println("server stopped")
 }

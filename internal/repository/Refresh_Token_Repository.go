@@ -74,3 +74,16 @@ func (r *RefreshTokenRepository) RevokeAllForUser(ctx context.Context, userID st
 
 	return nil
 }
+
+// DeleteExpired hard-deletes every expired row (revoked or not — once expired a
+// token is unusable, so its row carries no further value). Returns the number of
+// rows removed so the cleanup job can log it.
+func (r *RefreshTokenRepository) DeleteExpired(ctx context.Context) (int64, error) {
+	query := `DELETE FROM refresh_tokens WHERE expires_at < now()`
+	tag, err := r.db.Exec(ctx, query)
+	if err != nil {
+		return 0, fmt.Errorf("delete expired refresh tokens: %w", err)
+	}
+
+	return tag.RowsAffected(), nil
+}
