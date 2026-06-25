@@ -35,6 +35,50 @@ func NewUserService(repo UserRepository, refreshRepo RefreshTokenRepository, tok
 	}
 }
 
+// LoginResult carries the two tokens a successful login produces.
+type LoginResult struct {
+	AccessToken  string
+	RefreshToken string
+}
+
+func (s *UserService) Login(ctx context.Context, email, password string) (LoginResult, error) {
+	user, err := s.repo.GetByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return LoginResult{}, domain.ErrInvalidCredentials
+		}
+		return LoginResult{}, err
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return LoginResult{}, domain.ErrInvalidCredentials
+		}
+		return LoginResult{}, fmt.Errorf("login: malformed stored hash for user %s: %w", user.ID, err)
+	}
+
+	// short-lived access JWT (15 minutes)
+	accessToken, err := s.tokens.GenerateAccessToken(user.ID)
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("login: generate access token: %w", err)
+	}
+
+	// long-lived refresh token (7 days)
+	refresh, err := s.tokens.GenerateRefreshToken()
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("login: generate refresh token: %w", err)
+	}
+
+	if err := s.refreshRepo.Create(ctx, user.ID, refresh.Hash, refresh.ExpiresAt); err != nil {
+		return LoginResult{}, fmt.Errorf("login: store refresh token: %w", err)
+	}
+
+	return LoginResult{
+		AccessToken:  accessToken,
+		RefreshToken: refresh.Raw,
+	}, nil
+}
+
 func (s *UserService) Register(ctx context.Context, email, username, password string) (domain.User, error) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {

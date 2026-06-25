@@ -57,3 +57,42 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 		"username": user.Username,
 	})
 }
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
+	var loginRequest LoginRequest
+
+	err := json.NewDecoder(r.Body).Decode(&loginRequest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = validation.ValidateLogin(loginRequest.Email, loginRequest.Password)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.userService.Login(r.Context(), loginRequest.Email, loginRequest.Password)
+	switch {
+	case errors.Is(err, domain.ErrInvalidCredentials):
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	case err != nil:
+		log.Printf("login user: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"access_token":  result.AccessToken,
+		"refresh_token": result.RefreshToken,
+	})
+}

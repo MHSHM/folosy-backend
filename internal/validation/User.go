@@ -23,3 +23,17 @@ func ValidateRegister(email string, username string, password string) error {
 
 	return nil
 }
+
+func ValidateLogin(email string, password string) error {
+	email = strings.TrimSpace(email)
+
+	if email == "" {
+		return errors.New("email is required")
+	}
+
+	if password == "" {
+		return errors.New("password is required")
+	}
+
+	return nil
+}
