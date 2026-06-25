@@ -83,11 +83,15 @@ func main() {
 	refreshTokenRepository := repository.NewRefreshTokenRepository(dbPool)
 	userService := service.NewUserService(userRepository, refreshTokenRepository, tokenService)
 	userHandler := handler.NewUserHandler(userService)
+	authMiddleware := auth.NewAuthMiddleware(tokenService)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /register", userHandler.Register)
 	mux.HandleFunc("POST /login", userHandler.Login)
 	mux.HandleFunc("POST /refresh", userHandler.Refresh)
+	
+	// Protected: wrapped in RequireAuth
+	mux.Handle("GET /me", authMiddleware.RequireAuth(http.HandlerFunc(userHandler.Me)))
 
 	server := &http.Server{
 		Addr:              ":8080",

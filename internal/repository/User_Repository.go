@@ -44,6 +44,25 @@ func (r *UserRepository) Register(ctx context.Context, user domain.User) (string
 	return id, nil
 }
 
+func (r *UserRepository) GetByID(ctx context.Context, id string) (domain.User, error) {
+	query := `
+		SELECT id, email, username
+		FROM users
+		WHERE id = $1
+	`
+	var user domain.User
+	err := r.db.QueryRow(ctx, query, id).Scan(&user.ID, &user.Email, &user.Username)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.User{}, domain.ErrUserNotFound
+		}
+
+		return domain.User{}, fmt.Errorf("get user by id: %w", err)
+	}
+
+	return user, nil
+}
+
 func (r *UserRepository) GetByEmail(ctx context.Context, email string) (domain.User, error) {
 	query := `
 		SELECT id, email, username, password

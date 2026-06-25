@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"folosy-backend/internal/auth"
 	"folosy-backend/internal/domain"
 	"folosy-backend/internal/service"
 	"folosy-backend/internal/validation"
@@ -99,6 +100,35 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"access_token":  result.AccessToken,
 		"refresh_token": result.RefreshToken,
+	})
+}
+
+// Me returns the authenticated user's own profile. It runs only behind
+// RequireAuth, so the user ID is already verified and waiting in the context.
+func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
+	userID, ok := auth.UserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	user, err := h.userService.GetByID(r.Context(), userID)
+	switch {
+	case errors.Is(err, domain.ErrUserNotFound):
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	case err != nil:
+		log.Printf("get me: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"id":       user.ID,
+		"email":    user.Email,
+		"username": user.Username,
 	})
 }
 

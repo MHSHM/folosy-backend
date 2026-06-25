@@ -15,6 +15,7 @@ import (
 type UserRepository interface {
 	Register(ctx context.Context, user domain.User) (string, error)
 	GetByEmail(ctx context.Context, email string) (domain.User, error)
+	GetByID(ctx context.Context, id string) (domain.User, error)
 }
 
 type RefreshTokenRepository interface {
@@ -36,6 +37,12 @@ func NewUserService(repo UserRepository, refreshRepo RefreshTokenRepository, tok
 		refreshRepo: refreshRepo,
 		tokens:      tokens,
 	}
+}
+
+// GetByID returns a user's profile by ID. Thin today, but it's the layer where
+// future account-state checks will live.
+func (s *UserService) GetByID(ctx context.Context, id string) (domain.User, error) {
+	return s.repo.GetByID(ctx, id)
 }
 
 // LoginResult carries the two tokens a successful login produces.
