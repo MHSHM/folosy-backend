@@ -54,11 +54,21 @@ func main() {
 	userService := service.NewUserService(userRepository, refreshTokenRepository, tokenService)
 	userHandler := handler.NewUserHandler(userService)
 
-	http.HandleFunc("POST /register", userHandler.Register)
-	http.HandleFunc("POST /login", userHandler.Login)
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /register", userHandler.Register)
+	mux.HandleFunc("POST /login", userHandler.Login)
+
+	server := &http.Server{
+		Addr:              ":8080",
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,  // time to send all request headers
+		ReadTimeout:       10 * time.Second, // time to send the whole request (headers + body)
+		WriteTimeout:      10 * time.Second, // time to receive the whole response
+		IdleTimeout:       60 * time.Second, // idle keep-alive connection lifetime
+	}
 
 	log.Println("server listening on :8080")
-	err = http.ListenAndServe(":8080", nil)
+	err = server.ListenAndServe()
 	if err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}

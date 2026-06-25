@@ -18,6 +18,9 @@ func NewUserHandler(userService *service.UserService) *UserHandler {
 	return &UserHandler{userService: userService}
 }
 
+// maxAuthBodyBytes caps the request body for auth endpoints makes a "huge body" memory-exhaustion attempt harmless.
+const maxAuthBodyBytes = 2 << 10 // 4 KB
+
 type RegisterRequest struct {
 	Email    string `json:"email"`
 	Username string `json:"username"`
@@ -27,6 +30,7 @@ type RegisterRequest struct {
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var registerRequest RegisterRequest
 
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodyBytes)
 	err := json.NewDecoder(r.Body).Decode(&registerRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -66,6 +70,7 @@ type LoginRequest struct {
 func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var loginRequest LoginRequest
 
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodyBytes)
 	err := json.NewDecoder(r.Body).Decode(&loginRequest)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
