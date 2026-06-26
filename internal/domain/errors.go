@@ -23,4 +23,8 @@ var (
 	// client (→ 401). It covers unknown, expired, and revoked/reused tokens
 	// alike, so the response never reveals which case occurred.
 	ErrInvalidRefreshToken = errors.New("invalid refresh token")
+
+	// ErrInvalidGoogleToken is the generic Google sign-in failure surfaced to the
+	// client (→ 401).
+	ErrInvalidGoogleToken = errors.New("invalid google token")
 )

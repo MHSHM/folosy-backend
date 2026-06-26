@@ -79,17 +79,24 @@ func main() {
 	refreshTTL := durationFromEnv("JWT_REFRESH_TTL", 7*24*time.Hour)
 	tokenService := auth.NewTokenService(jwtSecret, accessTTL, refreshTTL)
 
+	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+	if googleClientID == "" {
+		log.Fatal("GOOGLE_CLIENT_ID is required")
+	}
+	googleVerifier := auth.NewGoogleVerifier(googleClientID)
+
 	userRepository := repository.NewUserRepository(dbPool)
 	refreshTokenRepository := repository.NewRefreshTokenRepository(dbPool)
-	userService := service.NewUserService(userRepository, refreshTokenRepository, tokenService)
+	userService := service.NewUserService(userRepository, refreshTokenRepository, tokenService, googleVerifier)
 	userHandler := handler.NewUserHandler(userService)
 	authMiddleware := auth.NewAuthMiddleware(tokenService)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /register", userHandler.Register)
-	mux.HandleFunc("POST /login", userHandler.Login)
-	mux.HandleFunc("POST /refresh", userHandler.Refresh)
-	
+	mux.HandleFunc("POST /auth/register", userHandler.Register)
+	mux.HandleFunc("POST /auth/login", userHandler.Login)
+	mux.HandleFunc("POST /auth/refresh", userHandler.Refresh)
+	mux.HandleFunc("POST /auth/google", userHandler.GoogleLogin)
+
 	// Protected: wrapped in RequireAuth
 	mux.Handle("GET /me", authMiddleware.RequireAuth(http.HandlerFunc(userHandler.Me)))
 

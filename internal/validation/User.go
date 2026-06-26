@@ -45,3 +45,11 @@ func ValidateRefresh(token string) error {
 
 	return nil
 }
+
+func ValidateGoogle(idToken string) error {
+	if strings.TrimSpace(idToken) == "" {
+		return errors.New("id token is required")
+	}
+
+	return nil
+}

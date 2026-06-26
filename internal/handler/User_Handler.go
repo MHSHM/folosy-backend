@@ -132,6 +132,46 @@ func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type GoogleLoginRequest struct {
+	IDToken string `json:"id_token"`
+}
+
+// GoogleLogin exchanges a Google ID token for our own access + refresh pair.
+func (h *UserHandler) GoogleLogin(w http.ResponseWriter, r *http.Request) {
+	var googleLoginRequest GoogleLoginRequest
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxAuthBodyBytes)
+	err := json.NewDecoder(r.Body).Decode(&googleLoginRequest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = validation.ValidateGoogle(googleLoginRequest.IDToken)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.userService.GoogleLogin(r.Context(), googleLoginRequest.IDToken)
+	switch {
+	case errors.Is(err, domain.ErrInvalidGoogleToken):
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	case err != nil:
+		log.Printf("google login: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"access_token":  result.AccessToken,
+		"refresh_token": result.RefreshToken,
+	})
+}
+
 type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token"`
 }

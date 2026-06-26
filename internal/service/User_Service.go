@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"folosy-backend/internal/auth"
@@ -16,6 +18,9 @@ type UserRepository interface {
 	Register(ctx context.Context, user domain.User) (string, error)
 	GetByEmail(ctx context.Context, email string) (domain.User, error)
 	GetByID(ctx context.Context, id string) (domain.User, error)
+	GetByGoogleSub(ctx context.Context, sub string) (domain.User, error)
+	LinkGoogleSub(ctx context.Context, userID, sub string) error
+	CreateGoogleUser(ctx context.Context, email, username, sub string) (string, error)
 }
 
 type RefreshTokenRepository interface {
@@ -29,13 +34,15 @@ type UserService struct {
 	repo        UserRepository
 	refreshRepo RefreshTokenRepository
 	tokens      *auth.TokenService
+	google      *auth.GoogleVerifier
 }
 
-func NewUserService(repo UserRepository, refreshRepo RefreshTokenRepository, tokens *auth.TokenService) *UserService {
+func NewUserService(repo UserRepository, refreshRepo RefreshTokenRepository, tokens *auth.TokenService, google *auth.GoogleVerifier) *UserService {
 	return &UserService{
 		repo:        repo,
 		refreshRepo: refreshRepo,
 		tokens:      tokens,
+		google:      google,
 	}
 }
 
@@ -51,6 +58,29 @@ type LoginResult struct {
 	RefreshToken string
 }
 
+// issueTokens mints and stores a fresh access + refresh pair. Unexported so it
+// stays callable only from the gated entry points (Login, Refresh, GoogleLogin).
+func (s *UserService) issueTokens(ctx context.Context, userID string) (LoginResult, error) {
+	accessToken, err := s.tokens.GenerateAccessToken(userID)
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("issue tokens: generate access token: %w", err)
+	}
+
+	refresh, err := s.tokens.GenerateRefreshToken()
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("issue tokens: generate refresh token: %w", err)
+	}
+
+	if err := s.refreshRepo.Create(ctx, userID, refresh.Hash, refresh.ExpiresAt); err != nil {
+		return LoginResult{}, fmt.Errorf("issue tokens: store refresh token: %w", err)
+	}
+
+	return LoginResult{
+		AccessToken:  accessToken,
+		RefreshToken: refresh.Raw,
+	}, nil
+}
+
 func (s *UserService) Login(ctx context.Context, email, password string) (LoginResult, error) {
 	user, err := s.repo.GetByEmail(ctx, email)
 	if err != nil {
@@ -60,33 +90,59 @@ func (s *UserService) Login(ctx context.Context, email, password string) (LoginR
 		return LoginResult{}, err
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+	if !user.Password.Valid {
+		return LoginResult{}, domain.ErrInvalidCredentials
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password.String), []byte(password)); err != nil {
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 			return LoginResult{}, domain.ErrInvalidCredentials
 		}
 		return LoginResult{}, fmt.Errorf("login: malformed stored hash for user %s: %w", user.ID, err)
 	}
 
-	// short-lived access JWT (15 minutes)
-	accessToken, err := s.tokens.GenerateAccessToken(user.ID)
+	return s.issueTokens(ctx, user.ID)
+}
+
+// GoogleLogin verifies a Google ID token and resolves it to a access + refresh tokens
+func (s *UserService) GoogleLogin(ctx context.Context, idToken string) (LoginResult, error) {
+	identity, err := s.google.Verify(ctx, idToken)
 	if err != nil {
-		return LoginResult{}, fmt.Errorf("login: generate access token: %w", err)
+		return LoginResult{}, err
 	}
 
-	// long-lived refresh token (7 days)
-	refresh, err := s.tokens.GenerateRefreshToken()
+	user, err := s.repo.GetByGoogleSub(ctx, identity.Sub)
+	if err == nil {
+		return s.issueTokens(ctx, user.ID)
+	}
+	if !errors.Is(err, domain.ErrUserNotFound) {
+		return LoginResult{}, fmt.Errorf("google login: lookup by sub: %w", err)
+	}
+
+	if !identity.EmailVerified {
+		return LoginResult{}, domain.ErrInvalidGoogleToken
+	}
+
+	// Existing account with the same email — link Google onto it.
+	user, err = s.repo.GetByEmail(ctx, identity.Email)
+	if err == nil {
+		if err := s.repo.LinkGoogleSub(ctx, user.ID, identity.Sub); err != nil {
+			return LoginResult{}, fmt.Errorf("google login: link sub: %w", err)
+		}
+		return s.issueTokens(ctx, user.ID)
+	}
+	if !errors.Is(err, domain.ErrUserNotFound) {
+		return LoginResult{}, fmt.Errorf("google login: lookup by email: %w", err)
+	}
+
+	// 3. Brand-new user — username from the email's local part.
+	username, _, _ := strings.Cut(identity.Email, "@")
+	id, err := s.repo.CreateGoogleUser(ctx, identity.Email, username, identity.Sub)
 	if err != nil {
-		return LoginResult{}, fmt.Errorf("login: generate refresh token: %w", err)
+		return LoginResult{}, fmt.Errorf("google login: create user: %w", err)
 	}
 
-	if err := s.refreshRepo.Create(ctx, user.ID, refresh.Hash, refresh.ExpiresAt); err != nil {
-		return LoginResult{}, fmt.Errorf("login: store refresh token: %w", err)
-	}
-
-	return LoginResult{
-		AccessToken:  accessToken,
-		RefreshToken: refresh.Raw,
-	}, nil
+	return s.issueTokens(ctx, id)
 }
 
 // Refresh redeems a raw refresh token for a brand-new access+refresh pair,
@@ -115,24 +171,7 @@ func (s *UserService) Refresh(ctx context.Context, rawToken string) (LoginResult
 		return LoginResult{}, fmt.Errorf("refresh: revoke old token: %w", err)
 	}
 
-	accessToken, err := s.tokens.GenerateAccessToken(stored.UserID)
-	if err != nil {
-		return LoginResult{}, fmt.Errorf("refresh: generate access token: %w", err)
-	}
-
-	newRefresh, err := s.tokens.GenerateRefreshToken()
-	if err != nil {
-		return LoginResult{}, fmt.Errorf("refresh: generate refresh token: %w", err)
-	}
-
-	if err := s.refreshRepo.Create(ctx, stored.UserID, newRefresh.Hash, newRefresh.ExpiresAt); err != nil {
-		return LoginResult{}, fmt.Errorf("refresh: store new refresh token: %w", err)
-	}
-
-	return LoginResult{
-		AccessToken:  accessToken,
-		RefreshToken: newRefresh.Raw,
-	}, nil
+	return s.issueTokens(ctx, stored.UserID)
 }
 
 func (s *UserService) Register(ctx context.Context, email, username, password string) (domain.User, error) {
@@ -144,7 +183,8 @@ func (s *UserService) Register(ctx context.Context, email, username, password st
 	user := domain.User{
 		Email:    email,
 		Username: username,
-		Password: string(hashedPassword),
+		// A registering user always has a password, so it's a valid (non-NULL) value.
+		Password: sql.NullString{String: string(hashedPassword), Valid: true},
 	}
 
 	id, err := s.repo.Register(ctx, user)
