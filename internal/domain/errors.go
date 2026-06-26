@@ -27,4 +27,13 @@ var (
 	// ErrInvalidGoogleToken is the generic Google sign-in failure surfaced to the
 	// client (→ 401).
 	ErrInvalidGoogleToken = errors.New("invalid google token")
+
+	// ErrCategoryNotFound is returned when a category lookup/update/delete matches
+	// no row. It covers BOTH "no such category" and "exists but not owned by this
+	// user"
+	ErrCategoryNotFound = errors.New("category not found")
+
+	// ErrCategoryNameExists is returned when a user already has a category with
+	// the same name (the UNIQUE (user_id, name) constraint, SQLSTATE 23505).
+	ErrCategoryNameExists = errors.New("category name already exists")
 )
