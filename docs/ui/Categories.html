@@ -1,0 +1,338 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport">
+<title>Folosy - Category Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Work+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@100..900&amp;family=Work+Sans:wght@100..900&amp;display=swap" rel="stylesheet">
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        body {
+            background-color: #f7f9fb;
+            color: #191c1e;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-on-surface": "#eff1f3",
+                        "on-primary-fixed": "#131b2e",
+                        "surface-container": "#eceef0",
+                        "tertiary": "#000000",
+                        "on-surface": "#191c1e",
+                        "primary-fixed": "#dae2fd",
+                        "surface-container-highest": "#e0e3e5",
+                        "tertiary-fixed": "#d3e4fe",
+                        "surface-tint": "#565e74",
+                        "background": "#f7f9fb",
+                        "error": "#ba1a1a",
+                        "surface-bright": "#f7f9fb",
+                        "on-surface-variant": "#45464d",
+                        "on-tertiary-fixed-variant": "#38485d",
+                        "on-secondary-container": "#006f66",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#b7c8e1",
+                        "surface-dim": "#d8dadc",
+                        "outline": "#76777d",
+                        "primary-container": "#131b2e",
+                        "outline-variant": "#c6c6cd",
+                        "secondary-fixed": "#89f5e7",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#7c839b",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-container": "#75859d",
+                        "inverse-surface": "#2d3133",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "on-secondary-fixed-variant": "#005049",
+                        "primary": "#000000",
+                        "surface-container-low": "#f2f4f6",
+                        "on-background": "#191c1e",
+                        "tertiary-container": "#0b1c30",
+                        "on-error": "#ffffff",
+                        "error-container": "#ffdad6",
+                        "secondary-fixed-dim": "#6bd8cb",
+                        "surface-variant": "#e0e3e5",
+                        "secondary-container": "#86f2e4",
+                        "on-tertiary-fixed": "#0b1c30",
+                        "inverse-primary": "#bec6e0",
+                        "surface-container-high": "#e6e8ea",
+                        "surface": "#f7f9fb",
+                        "secondary": "#006a61",
+                        "on-primary": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed": "#00201d",
+                        "primary-fixed-dim": "#bec6e0"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "lg": "24px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "sm": "8px",
+                        "xl": "40px",
+                        "gutter": "16px",
+                        "container-margin": "20px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "data-display": ["JetBrains Mono"],
+                        "body-md": ["Work Sans"],
+                        "body-lg": ["Work Sans"],
+                        "body-sm": ["Work Sans"],
+                        "label-caps": ["Work Sans"],
+                        "headline-lg": ["Manrope"],
+                        "headline-md": ["Manrope"],
+                        "headline-lg-mobile": ["Manrope"]
+                    },
+                    "fontSize": {
+                        "data-display": ["18px", {"lineHeight": "24px", "letterSpacing": "-0.03em", "fontWeight": "500"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md min-h-screen pb-32">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-surface dark:bg-surface-dim shadow-sm">
+<div class="flex items-center justify-between px-container-margin py-sm w-full max-w-[1140px] mx-auto">
+<div class="flex items-center gap-md">
+<button class="p-2 rounded-full hover:bg-surface-container-high transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined text-secondary dark:text-secondary-fixed">account_balance_wallet</span>
+</button>
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface dark:text-inverse-on-surface">Folosy</h1>
+</div>
+<div class="flex items-center gap-sm">
+<button class="flex items-center gap-xs px-md py-xs bg-secondary-container text-on-secondary-container rounded-full font-label-caps text-label-caps transition-transform active:scale-95">
+<span class="material-symbols-outlined text-[18px]">add</span>
+<span class="hidden md:inline">Add New</span>
+</button>
+</div>
+</div>
+</header>
+<main class="max-w-[1140px] mx-auto px-container-margin mt-lg">
+<!-- Hero Section / Context -->
+<section class="mb-xl">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-md">
+<div>
+<h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-surface mb-xs">Category Management</h2>
+<p class="text-on-surface-variant max-w-md">Organize your capital into buckets to monitor spending habits and optimize your financial flow.</p>
+</div>
+
+</div>
+</section>
+<!-- Category Grid/List -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+<!-- Category Card: Groceries -->
+<div class="group bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-[0px_4px_20px_rgba(15,23,42,0.05)] transition-all hover:shadow-lg hover:border-secondary">
+<div class="flex justify-between items-start mb-md">
+<div class="w-xl h-xl rounded-full bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">shopping_cart</span>
+</div>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md mb-xs">Groceries</h3>
+<div class="flex justify-between items-baseline">
+<span class="font-data-display text-data-display">$840.00</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">This Month</span>
+</div>
+</div>
+<div class="mt-md w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full" style="width: 65%;"></div>
+</div>
+<div class="mt-xs flex justify-between font-label-caps text-[10px] text-outline">
+<span class="">USED: $840</span>
+<span class="">BUDGET: $1,200</span>
+</div>
+</div>
+<!-- Category Card: Utilities -->
+<div class="group bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-[0px_4px_20px_rgba(15,23,42,0.05)] transition-all hover:shadow-lg hover:border-secondary">
+<div class="flex justify-between items-start mb-md">
+<div class="w-xl h-xl rounded-full bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">bolt</span>
+</div>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md mb-xs">Utilities</h3>
+<div class="flex justify-between items-baseline">
+<span class="font-data-display text-data-display">$320.50</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">This Month</span>
+</div>
+</div>
+<div class="mt-md w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full" style="width: 82%;"></div>
+</div>
+<div class="mt-xs flex justify-between font-label-caps text-[10px] text-outline">
+<span class="">USED: $320</span>
+<span class="">BUDGET: $400</span>
+</div>
+</div>
+<!-- Category Card: Rent -->
+<div class="group bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-[0px_4px_20px_rgba(15,23,42,0.05)] transition-all hover:shadow-lg hover:border-secondary">
+<div class="flex justify-between items-start mb-md">
+<div class="w-xl h-xl rounded-full bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">home</span>
+</div>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md mb-xs">Rent</h3>
+<div class="flex justify-between items-baseline">
+<span class="font-data-display text-data-display">$2,400.00</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">This Month</span>
+</div>
+</div>
+<div class="mt-md w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full" style="width: 100%;"></div>
+</div>
+<div class="mt-xs flex justify-between font-label-caps text-[10px] text-outline">
+<span class="">USED: $2.4k</span>
+<span class="">BUDGET: $2.4k</span>
+</div>
+</div>
+<!-- Category Card: Dining -->
+<div class="group bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-[0px_4px_20px_rgba(15,23,42,0.05)] transition-all hover:shadow-lg hover:border-secondary">
+<div class="flex justify-between items-start mb-md">
+<div class="w-xl h-xl rounded-full bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">restaurant</span>
+</div>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md mb-xs">Dining</h3>
+<div class="flex justify-between items-baseline">
+<span class="font-data-display text-data-display">$1,120.40</span>
+<span class="font-label-caps text-label-caps text-error font-bold">Over Budget</span>
+</div>
+</div>
+<div class="mt-md w-full bg-error-container h-1.5 rounded-full overflow-hidden">
+<div class="bg-error h-full w-full"></div>
+</div>
+<div class="mt-xs flex justify-between font-label-caps text-[10px] text-error font-bold">
+<span class="">USED: $1,120</span>
+<span class="">LIMIT: $900</span>
+</div>
+</div>
+<!-- Category Card: Transport -->
+<div class="group bg-surface-container-lowest border border-outline-variant rounded-xl p-md shadow-[0px_4px_20px_rgba(15,23,42,0.05)] transition-all hover:shadow-lg hover:border-secondary">
+<div class="flex justify-between items-start mb-md">
+<div class="w-xl h-xl rounded-full bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">directions_car</span>
+</div>
+<button class="text-outline hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md mb-xs">Transport</h3>
+<div class="flex justify-between items-baseline">
+<span class="font-data-display text-data-display">$215.00</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">This Month</span>
+</div>
+</div>
+<div class="mt-md w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-secondary h-full" style="width: 45%;"></div>
+</div>
+<div class="mt-xs flex justify-between font-label-caps text-[10px] text-outline">
+<span class="">USED: $215</span>
+<span class="">BUDGET: $500</span>
+</div>
+</div>
+<!-- Add New Category CTA (Bento Style) -->
+<button class="flex flex-col items-center justify-center border-2 border-dashed border-outline-variant rounded-xl p-md hover:border-secondary hover:bg-secondary-container/5 transition-all group active:scale-95">
+<div class="w-xl h-xl rounded-full bg-surface-container-high group-hover:bg-secondary-container flex items-center justify-center mb-md transition-colors">
+<span class="material-symbols-outlined text-outline group-hover:text-on-secondary-container">add</span>
+</div>
+<span class="font-headline-md text-headline-md text-outline group-hover:text-secondary">Add New Bucket</span>
+<span class="text-body-sm text-label-caps text-outline mt-sm">Define a custom spending goal</span>
+</button>
+</div>
+<!-- Visual Asset -->
+
+<!-- Secondary Info -->
+<section class="grid grid-cols-1 md:grid-cols-2 gap-md mb-xl">
+
+
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 py-2 pb-safe bg-surface-container-lowest dark:bg-inverse-surface border-t border-outline-variant z-50 rounded-t-xl shadow-[0px_-4px_20px_rgba(15,23,42,0.05)]">
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline hover:bg-surface-container dark:hover:bg-surface-variant px-4 py-1 transition-transform active:scale-90" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps mt-1">Dashboard</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline hover:bg-surface-container dark:hover:bg-surface-variant px-4 py-1 transition-transform active:scale-90" href="#">
+<span class="material-symbols-outlined">receipt_long</span>
+<span class="font-label-caps text-label-caps mt-1">Activity</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-secondary-container dark:bg-on-secondary-fixed-variant text-on-secondary-container dark:text-secondary-fixed rounded-full px-4 py-1 transition-transform active:scale-90" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: &quot;FILL&quot; 1;">category</span>
+<span class="font-label-caps text-label-caps mt-1 font-bold">Categories</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-outline hover:bg-surface-container dark:hover:bg-surface-variant px-4 py-1 transition-transform active:scale-90" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-caps text-label-caps mt-1">Settings</span>
+</a>
+</nav>
+<!-- Simple Interactivity for Demo -->
+<script>
+        document.querySelectorAll('.active\\:scale-95').forEach(button => {
+            button.addEventListener('click', () => {
+                console.log('Interaction logged: ' + button.innerText.trim());
+            });
+        });
+    </script>
+
+
+
+
+</body></html>
