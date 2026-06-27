@@ -91,6 +91,10 @@ func main() {
 	userHandler := handler.NewUserHandler(userService)
 	authMiddleware := auth.NewAuthMiddleware(tokenService)
 
+	categoryRepository := repository.NewCategoryRepository(dbPool)
+	categoryService := service.NewCategoryService(categoryRepository)
+	categoryHandler := handler.NewCategoryHandler(categoryService)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /auth/register", userHandler.Register)
 	mux.HandleFunc("POST /auth/login", userHandler.Login)
@@ -99,6 +103,13 @@ func main() {
 
 	// Protected: wrapped in RequireAuth
 	mux.Handle("GET /me", authMiddleware.RequireAuth(http.HandlerFunc(userHandler.Me)))
+
+	// Categories — all per-user resources, so every route is wrapped in RequireAuth.
+	mux.Handle("POST /categories", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.Create)))
+	mux.Handle("GET /categories", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.List)))
+	mux.Handle("GET /categories/{id}", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.Get)))
+	mux.Handle("PUT /categories/{id}", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.Update)))
+	mux.Handle("DELETE /categories/{id}", authMiddleware.RequireAuth(http.HandlerFunc(categoryHandler.Delete)))
 
 	server := &http.Server{
 		Addr:              ":8080",
