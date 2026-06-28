@@ -36,4 +36,9 @@ var (
 	// ErrCategoryNameExists is returned when a user already has a category with
 	// the same name (the UNIQUE (user_id, name) constraint, SQLSTATE 23505).
 	ErrCategoryNameExists = errors.New("category name already exists")
+
+	// ErrTransactionNotFound is returned when a transaction lookup/update/delete
+	// matches no row. Like ErrCategoryNotFound it covers BOTH "no such transaction"
+	// and "exists but not owned by this user"
+	ErrTransactionNotFound = errors.New("transaction not found")
 )

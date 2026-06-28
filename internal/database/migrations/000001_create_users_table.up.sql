@@ -6,7 +6,7 @@ CREATE TABLE users (
     google_sub TEXT UNIQUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    total_balance NUMERIC(15, 2) DEFAULT 0.00,
+    total_balance_minor BIGINT NOT NULL DEFAULT 0,
     budget NUMERIC(15, 2) DEFAULT 0.00,
     budget_start_at TIMESTAMP WITH TIME ZONE,
     budget_end_at TIMESTAMP WITH TIME ZONE,
