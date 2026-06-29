@@ -59,9 +59,10 @@ func (r *TransactionRepository) Create(ctx context.Context, t domain.Transaction
 	//
 	// Consequence: "category given but not owned (or non-existent)" → 0 rows →
 	// RETURNING has nothing → pgx.ErrNoRows, which we map to ErrCategoryNotFound.
+	// NOTE: The select statment needs the types to be explicitly stated
 	insertQuery := `
 		INSERT INTO transactions (user_id, category_id, amount_minor, direction, merchant, occurred_at)
-		SELECT $1, $2, $3, $4, $5, $6
+		SELECT $1::uuid, $2::uuid, $3::bigint, $4::smallint, $5::text, $6::timestamptz
 		WHERE $2 IS NULL
 		   OR EXISTS (SELECT 1 FROM categories WHERE id = $2 AND user_id = $1)
 		RETURNING id, created_at, updated_at
@@ -221,7 +222,7 @@ func (r *TransactionRepository) Update(ctx context.Context, t domain.Transaction
 		SET category_id = $1, amount_minor = $2, direction = $3, merchant = $4,
 		    occurred_at = $5, updated_at = CURRENT_TIMESTAMP
 		WHERE id = $6 AND user_id = $7
-		  AND ($1 IS NULL OR EXISTS (SELECT 1 FROM categories WHERE id = $1 AND user_id = $7))
+		  AND ($1::uuid IS NULL OR EXISTS (SELECT 1 FROM categories WHERE id = $1 AND user_id = $7))
 		RETURNING id, user_id, category_id, amount_minor, direction, merchant, occurred_at, created_at, updated_at
 	`
 	var updated domain.Transaction
