@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"folosy-backend/internal/domain"
 
@@ -213,13 +214,83 @@ func (r *TransactionRepository) Update(ctx context.Context, t domain.Transaction
 		return domain.Transaction{}, fmt.Errorf("lock transaction for update: %w", err)
 	}
 
-	// step 2: write the new fields, re-checking category ownership. -- TODO
-	// step 3: move the balance by newEffect - oldEffect.            -- TODO
-	_ = oldAmount
-	_ = oldDirection
+	// Update the transaction row that matches the id and user's id while making sure that
+	// the user has an actualt category matching the category provided
+	const updateTx = `
+		UPDATE transactions
+		SET category_id = $1, amount_minor = $2, direction = $3, merchant = $4,
+		    occurred_at = $5, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $6 AND user_id = $7
+		  AND ($1 IS NULL OR EXISTS (SELECT 1 FROM categories WHERE id = $1 AND user_id = $7))
+		RETURNING id, user_id, category_id, amount_minor, direction, merchant, occurred_at, created_at, updated_at
+	`
+	var updated domain.Transaction
+	err = tx.QueryRow(ctx, updateTx,
+		t.CategoryID, t.AmountMinor, int16(t.Direction), t.Merchant, t.OccurredAt, t.ID, t.UserID,
+	).Scan(
+		&updated.ID, &updated.UserID, &updated.CategoryID, &updated.AmountMinor, &updated.Direction,
+		&updated.Merchant, &updated.OccurredAt, &updated.CreatedAt, &updated.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Transaction{}, domain.ErrCategoryNotFound
+		}
+		return domain.Transaction{}, fmt.Errorf("update transaction: %w", err)
+	}
+
+	// Apply the direction to the amount then move the user balance by the distance between the two
+	oldEffect := oldAmount
+	if oldDirection == domain.DirectionExpense {
+		oldEffect = -oldEffect
+	}
+	newEffect := updated.AmountMinor
+	if updated.Direction == domain.DirectionExpense {
+		newEffect = -newEffect
+	}
+	balanceDelta := newEffect - oldEffect
+
+	const updateBalance = `UPDATE users SET total_balance_minor = total_balance_minor + $1 WHERE id = $2`
+	if _, err := tx.Exec(ctx, updateBalance, balanceDelta, t.UserID); err != nil {
+		return domain.Transaction{}, fmt.Errorf("adjust balance: %w", err)
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return domain.Transaction{}, fmt.Errorf("commit tx: %w", err)
 	}
-	return t, nil
+	return updated, nil
+}
+
+// TopExpenses returns a user's 5 largest expenses within the [from, to) window.
+func (r *TransactionRepository) TopExpenses(ctx context.Context, userID string, from, to time.Time) ([]domain.Transaction, error) {
+	query := `
+		SELECT id, user_id, category_id, amount_minor, direction, merchant, occurred_at, created_at, updated_at
+		FROM transactions
+		WHERE user_id = $1
+		  AND direction = $2
+		  AND occurred_at >= $3
+		  AND occurred_at <  $4
+		ORDER BY amount_minor DESC
+		LIMIT 5
+	`
+	rows, err := r.db.Query(ctx, query, userID, int16(domain.DirectionExpense), from, to)
+	if err != nil {
+		return nil, fmt.Errorf("top expenses: %w", err)
+	}
+	defer rows.Close()
+
+	transactions := make([]domain.Transaction, 0, 5)
+	for rows.Next() {
+		var t domain.Transaction
+		if err := rows.Scan(
+			&t.ID, &t.UserID, &t.CategoryID, &t.AmountMinor, &t.Direction,
+			&t.Merchant, &t.OccurredAt, &t.CreatedAt, &t.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan transaction: %w", err)
+		}
+		transactions = append(transactions, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate transactions: %w", err)
+	}
+	return transactions, nil
 }
